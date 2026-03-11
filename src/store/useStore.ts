@@ -60,43 +60,61 @@ export function useStore() {
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Sync with server
+  // Sync with server (Download)
   const syncWithServer = useCallback(async (id: string) => {
     setIsSyncing(true);
     try {
       const response = await fetch(`/api/data/${id}`);
       if (response.ok) {
         const data = await response.json();
-        if (data.profile) setProfileState(data.profile);
-        if (data.records) setRecordsState(data.records);
-        if (data.inBodyRecords) setInBodyRecordsState(data.inBodyRecords);
-        setUserIdState(id);
-        localStorage.setItem("proteinTracker_userId", id);
+        // Only update if server has data
+        if (data.profile) {
+          setProfileState(data.profile);
+          setRecordsState(data.records || {});
+          setInBodyRecordsState(data.inBodyRecords || []);
+          setUserIdState(id);
+          localStorage.setItem("proteinTracker_userId", id);
+          return true;
+        } else {
+          // If server is empty, we treat this as "registering" this ID with current local data
+          setUserIdState(id);
+          localStorage.setItem("proteinTracker_userId", id);
+          return true;
+        }
       }
     } catch (error) {
       console.error("Sync failed", error);
     } finally {
       setIsSyncing(false);
     }
+    return false;
   }, []);
+
+  const uploadToServer = useCallback(async () => {
+    if (!userId) return;
+    try {
+      await fetch(`/api/data/${userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, records, inBodyRecords }),
+      });
+    } catch (error) {
+      console.error("Upload failed", error);
+    }
+  }, [userId, profile, records, inBodyRecords]);
 
   const logout = useCallback(() => {
     setUserIdState(null);
     localStorage.removeItem("proteinTracker_userId");
-    // Optionally clear local data or keep it
   }, []);
 
   // Save to local storage whenever state changes
   useEffect(() => {
     localStorage.setItem("proteinTracker_profile", JSON.stringify(profile));
     if (userId) {
-      fetch(`/api/data/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, records, inBodyRecords }),
-      });
+      uploadToServer();
     }
-  }, [profile, userId, records, inBodyRecords]);
+  }, [profile, userId, records, inBodyRecords, uploadToServer]);
 
   useEffect(() => {
     localStorage.setItem("proteinTracker_records", JSON.stringify(records));

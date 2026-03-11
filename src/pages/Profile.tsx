@@ -99,9 +99,12 @@ export default function ProfilePage() {
                 <p className="text-xs text-indigo-100 uppercase tracking-wider mb-1">目前同步 ID</p>
                 <p className="text-xl font-mono font-bold">{userId}</p>
               </div>
-              <p className="text-sm text-indigo-100">
-                您的資料已與雲端同步。在其他瀏覽器輸入此 ID 即可找回紀錄。
-              </p>
+              <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                <p className="text-xs text-indigo-100 leading-relaxed">
+                  ✅ 您的資料已與雲端同步。<br />
+                  📱 在手機或其他瀏覽器輸入此 ID 即可找回紀錄。
+                </p>
+              </div>
               <button
                 onClick={logout}
                 className="w-full flex items-center justify-center py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
@@ -113,7 +116,7 @@ export default function ProfilePage() {
           ) : (
             <form onSubmit={handleSync} className="space-y-4">
               <p className="text-sm text-indigo-100">
-                輸入一個自訂的「同步 ID」（例如您的 Email 或手機），即可在不同瀏覽器同步您的紀錄。
+                請輸入一個「同步 ID」（例如您的 Email 或手機），即可在不同裝置同步。
               </p>
               <div className="flex space-x-2">
                 <input
@@ -132,6 +135,9 @@ export default function ProfilePage() {
                   {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : "同步"}
                 </button>
               </div>
+              <p className="text-[10px] text-indigo-200 text-center">
+                * 注意：伺服器重啟時資料可能會清空，建議定期匯出備份。
+              </p>
             </form>
           )}
         </div>
