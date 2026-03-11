@@ -37,6 +37,10 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 export function useStore() {
+  const [userId, setUserIdState] = useState<string | null>(() => {
+    return localStorage.getItem("proteinTracker_userId");
+  });
+
   const [profile, setProfileState] = useState<UserProfile>(() => {
     const saved = localStorage.getItem("proteinTracker_profile");
     return saved ? JSON.parse(saved) : DEFAULT_PROFILE;
@@ -54,10 +58,45 @@ export function useStore() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Sync with server
+  const syncWithServer = useCallback(async (id: string) => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`/api/data/${id}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) setProfileState(data.profile);
+        if (data.records) setRecordsState(data.records);
+        if (data.inBodyRecords) setInBodyRecordsState(data.inBodyRecords);
+        setUserIdState(id);
+        localStorage.setItem("proteinTracker_userId", id);
+      }
+    } catch (error) {
+      console.error("Sync failed", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  const logout = useCallback(() => {
+    setUserIdState(null);
+    localStorage.removeItem("proteinTracker_userId");
+    // Optionally clear local data or keep it
+  }, []);
+
   // Save to local storage whenever state changes
   useEffect(() => {
     localStorage.setItem("proteinTracker_profile", JSON.stringify(profile));
-  }, [profile]);
+    if (userId) {
+      fetch(`/api/data/${userId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profile, records, inBodyRecords }),
+      });
+    }
+  }, [profile, userId, records, inBodyRecords]);
 
   useEffect(() => {
     localStorage.setItem("proteinTracker_records", JSON.stringify(records));
@@ -159,5 +198,9 @@ export function useStore() {
     addInBodyRecord,
     removeInBodyRecord,
     importData,
+    userId,
+    syncWithServer,
+    logout,
+    isSyncing,
   };
 }

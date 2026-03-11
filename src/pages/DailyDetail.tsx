@@ -1,11 +1,9 @@
-import { useState, useEffect, FormEvent } from "react";
+import { useState, FormEvent } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { format, parseISO, isToday } from "date-fns";
 import {
   ArrowLeft,
   Plus,
-  Search,
-  Loader2,
   Trash2,
   Edit2,
   Check,
@@ -13,7 +11,6 @@ import {
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { useStore, FoodEntry } from "../store/useStore";
-import { estimateProtein } from "../services/gemini";
 import { cn } from "../lib/utils";
 
 export default function DailyDetailPage() {
@@ -27,13 +24,10 @@ export default function DailyDetailPage() {
     updateFoodEntry,
   } = useStore();
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState("");
   
   const [manualName, setManualName] = useState("");
   const [manualProtein, setManualProtein] = useState("");
-  const [activeTab, setActiveTab] = useState<"ai" | "manual">("ai");
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -50,31 +44,6 @@ export default function DailyDetailPage() {
     (record.totalProtein / profile.dailyGoal) * 100,
     100,
   );
-
-  const handleSearch = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-
-    setIsSearching(true);
-    setError("");
-
-    try {
-      const result = await estimateProtein(searchQuery);
-      addFoodEntry(date, {
-        id: uuidv4(),
-        name: result.name,
-        protein: result.protein,
-        timestamp: Date.now(),
-      });
-      setSearchQuery("");
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to estimate protein",
-      );
-    } finally {
-      setIsSearching(false);
-    }
-  };
 
   const handleManualAdd = (e: FormEvent) => {
     e.preventDefault();
@@ -152,64 +121,21 @@ export default function DailyDetailPage() {
         </div>
       </div>
 
-      {/* Add Food Input */}
+      {/* Add Food Section */}
       <div className="px-6 py-6 bg-white border-b border-slate-200">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
             新增食物
           </h2>
-          <div className="flex bg-slate-100 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab("ai")}
-              className={cn(
-                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
-                activeTab === "ai" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              AI 估算
-            </button>
-            <button
-              onClick={() => setActiveTab("manual")}
-              className={cn(
-                "px-3 py-1 text-xs font-medium rounded-md transition-colors",
-                activeTab === "manual" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              手動輸入
-            </button>
-          </div>
         </div>
 
-        {activeTab === "ai" ? (
-          <form onSubmit={handleSearch} className="relative">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="例如：100克雞胸肉"
-              className="w-full pl-10 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              disabled={isSearching}
-            />
-            <Search className="absolute left-3 top-3.5 w-5 h-5 text-slate-400" />
-            <button
-              type="submit"
-              disabled={isSearching || !searchQuery.trim()}
-              className="absolute right-2 top-2 p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
-            >
-              {isSearching ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <Plus className="w-5 h-5" />
-              )}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleManualAdd} className="flex space-x-2">
+        <form onSubmit={handleManualAdd} className="flex flex-col space-y-3">
+          <div className="flex space-x-2">
             <input
               type="text"
               value={manualName}
               onChange={(e) => setManualName(e.target.value)}
-              placeholder="食物名稱"
+              placeholder="食物名稱 (例如：雞胸肉)"
               className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
             />
             <div className="relative w-28">
@@ -223,15 +149,16 @@ export default function DailyDetailPage() {
               />
               <span className="absolute right-3 top-3.5 text-slate-400 text-sm">克</span>
             </div>
-            <button
-              type="submit"
-              disabled={!manualName.trim() || !manualProtein.trim()}
-              className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </form>
-        )}
+          </div>
+          <button
+            type="submit"
+            disabled={!manualName.trim() || !manualProtein.trim()}
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors flex items-center justify-center"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            新增紀錄
+          </button>
+        </form>
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
 

@@ -1,16 +1,17 @@
 import { useState, FormEvent, useRef, ChangeEvent } from "react";
 import { useStore } from "../store/useStore";
-import { Save, User, Target, Download, Upload, Database, Activity, Trash2 } from "lucide-react";
+import { Save, User, Target, Download, Upload, Database, Activity, Trash2, Cloud, LogOut, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 
 export default function ProfilePage() {
-  const { profile, updateProfile, records, inBodyRecords, addInBodyRecord, removeInBodyRecord, importData } = useStore();
+  const { profile, updateProfile, records, inBodyRecords, addInBodyRecord, removeInBodyRecord, importData, userId, syncWithServer, logout, isSyncing } = useStore();
 
   const [weight, setWeight] = useState(profile.weight.toString());
   const [goalMultiplier, setGoalMultiplier] = useState(
     profile.goalMultiplier.toString(),
   );
   const [isSaved, setIsSaved] = useState(false);
+  const [syncIdInput, setSyncIdInput] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = (e: FormEvent) => {
@@ -64,6 +65,14 @@ export default function ProfilePage() {
     reader.readAsText(file);
   };
 
+  const handleSync = async (e: FormEvent) => {
+    e.preventDefault();
+    if (syncIdInput.trim()) {
+      await syncWithServer(syncIdInput.trim());
+      setSyncIdInput("");
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50 pb-24">
       {/* Header */}
@@ -77,6 +86,56 @@ export default function ProfilePage() {
       </div>
 
       <div className="px-6 py-6 space-y-8">
+        {/* Cloud Sync Section */}
+        <div className="bg-indigo-600 p-6 rounded-2xl text-white shadow-lg shadow-indigo-200">
+          <div className="flex items-center mb-4">
+            <Cloud className="w-6 h-6 mr-2" />
+            <h2 className="text-lg font-bold">雲端同步</h2>
+          </div>
+          
+          {userId ? (
+            <div className="space-y-4">
+              <div className="bg-white/10 p-4 rounded-xl border border-white/20">
+                <p className="text-xs text-indigo-100 uppercase tracking-wider mb-1">目前同步 ID</p>
+                <p className="text-xl font-mono font-bold">{userId}</p>
+              </div>
+              <p className="text-sm text-indigo-100">
+                您的資料已與雲端同步。在其他瀏覽器輸入此 ID 即可找回紀錄。
+              </p>
+              <button
+                onClick={logout}
+                className="w-full flex items-center justify-center py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-medium transition-colors"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                登出同步
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleSync} className="space-y-4">
+              <p className="text-sm text-indigo-100">
+                輸入一個自訂的「同步 ID」（例如您的 Email 或手機），即可在不同瀏覽器同步您的紀錄。
+              </p>
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={syncIdInput}
+                  onChange={(e) => setSyncIdInput(e.target.value)}
+                  placeholder="輸入您的同步 ID"
+                  className="flex-1 px-4 py-2 bg-white/20 border border-white/30 rounded-xl placeholder:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-white/50 text-white"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={isSyncing || !syncIdInput.trim()}
+                  className="px-6 py-2 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-colors disabled:opacity-50"
+                >
+                  {isSyncing ? <Loader2 className="w-5 h-5 animate-spin" /> : "同步"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+
         <form onSubmit={handleSave} className="space-y-6">
           {/* Weight Input */}
           <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
