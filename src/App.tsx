@@ -15,6 +15,21 @@ import { signInWithGoogle, logout as firebaseLogout, isFirebaseConfigValid } fro
 
 function Header() {
   const { user } = useStore();
+  const isIframe = window !== window.top;
+
+  const handleLoginClick = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error: any) {
+      if (error.code === 'auth/popup-blocked') {
+        alert("登入視窗被瀏覽器攔截了，請允許此網頁開啟彈出視窗，或在新分頁中開啟此網頁。");
+      } else if (error.code === 'auth/unauthorized-domain') {
+        alert("此網域尚未在 Firebase 授權網域列表中。");
+      } else {
+        alert("登入失敗: " + (error.message || "未知錯誤"));
+      }
+    }
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
@@ -43,13 +58,26 @@ function Header() {
             </button>
           </div>
         ) : (
-          <button 
-            onClick={signInWithGoogle}
-            className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            <LogIn className="w-4 h-4 text-indigo-600" />
-            <span>Google 登入</span>
-          </button>
+          isIframe ? (
+            <a 
+              href={window.location.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center space-x-2 px-3 py-1.5 bg-indigo-50 border border-indigo-200 rounded-lg text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition-colors"
+              title="在新分頁開啟以登入"
+            >
+              <LogIn className="w-4 h-4 text-indigo-600" />
+              <span>在新分頁登入</span>
+            </a>
+          ) : (
+            <button 
+              onClick={handleLoginClick}
+              className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              <LogIn className="w-4 h-4 text-indigo-600" />
+              <span>Google 登入</span>
+            </button>
+          )
         )
       ) : null}
     </header>

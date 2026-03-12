@@ -2,8 +2,9 @@ import { useState, FormEvent, useRef, ChangeEvent } from "react";
 import { useStore } from "../store/useStore";
 import { Save, User, Target, Download, Upload, Database, Activity, Trash2, Cloud, LogOut, Loader2, LogIn, AlertTriangle, Camera, Image as ImageIcon, X } from "lucide-react";
 import { format } from "date-fns";
-import { signInWithGoogle, isFirebaseConfigValid } from "../lib/firebase";
+import { isFirebaseConfigValid } from "../lib/firebase";
 import { v4 as uuidv4 } from "uuid";
+import { cn } from "../lib/utils";
 
 export default function ProfilePage() {
   const { profile, updateProfile, records, inBodyRecords, addInBodyRecord, removeInBodyRecord, importData, userId, user, syncWithServer, logout, isSyncing } = useStore();
@@ -108,14 +109,6 @@ export default function ProfilePage() {
       }
     };
     reader.readAsText(file);
-  };
-
-  const handleSync = async (e: FormEvent) => {
-    e.preventDefault();
-    if (syncIdInput.trim()) {
-      await syncWithServer(syncIdInput.trim());
-      setSyncIdInput("");
-    }
   };
 
   return (

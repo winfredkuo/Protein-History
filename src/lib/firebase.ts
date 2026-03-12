@@ -22,6 +22,10 @@ if (isFirebaseConfigValid) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     googleProvider = new GoogleAuthProvider();
+    // Force account selection to prevent auto-login loops
+    googleProvider.setCustomParameters({
+      prompt: 'select_account'
+    });
   } catch (error) {
     console.error("Firebase initialization failed:", error);
   }
@@ -31,23 +35,21 @@ export { auth, googleProvider, isFirebaseConfigValid };
 
 export const signInWithGoogle = async () => {
   if (!auth || !googleProvider) {
-    alert("Firebase 未正確設定，請檢查 Secrets 中的 VITE_FIREBASE_API_KEY 等變數。");
+    console.error("Firebase 未正確設定");
     return;
   }
   
   try {
-    // In some iframe environments, popup might be blocked. 
-    // We try popup first as it's better UX, but handle errors.
     await signInWithPopup(auth, googleProvider);
   } catch (error: any) {
     if (error.code === 'auth/unauthorized-domain') {
-      alert("此網域尚未在 Firebase 授權網域列表中。\n\n請將目前的網址加入 Firebase 控制台的「授權網域」中。");
+      console.error("此網域尚未在 Firebase 授權網域列表中。");
     } else if (error.code === 'auth/popup-blocked') {
-      alert("登入視窗被瀏覽器攔截了，請允許此網頁開啟彈出視窗。");
+      console.error("登入視窗被瀏覽器攔截了，請允許此網頁開啟彈出視窗。");
     } else {
       console.error("Sign in error:", error);
-      alert("登入失敗: " + (error.message || "未知錯誤"));
     }
+    throw error;
   }
 };
 
