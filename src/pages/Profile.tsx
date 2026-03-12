@@ -6,6 +6,8 @@ import { isFirebaseConfigValid } from "../lib/firebase";
 import { v4 as uuidv4 } from "uuid";
 import { cn } from "../lib/utils";
 
+import imageCompression from 'browser-image-compression';
+
 export default function ProfilePage() {
   const { profile, updateProfile, records, inBodyRecords, addInBodyRecord, removeInBodyRecord, importData, userId, user, syncWithServer, logout, isSyncing } = useStore();
 
@@ -16,6 +18,7 @@ export default function ProfilePage() {
   const [isSaved, setIsSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inBodyPhotoRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // InBody Form State
   const [inBodyWeight, setInBodyWeight] = useState("");
@@ -24,44 +27,39 @@ export default function ProfilePage() {
   const [inBodyPhoto, setInBodyPhoto] = useState<string | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx?.drawImage(img, 0, 0, width, height);
-        
-        // Compress to JPEG with 0.7 quality to keep size small for Firestore
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        setInBodyPhoto(compressedBase64);
+    try {
+      setIsCompressing(true);
+      
+      const options = {
+        maxSizeMB: 0.1, // Compress to max 100KB to fit in Firestore
+        maxWidthOrHeight: 800,
+        useWebWorker: true,
+        fileType: 'image/jpeg' as string,
       };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+      
+      const compressedFile = await imageCompression(file, options);
+      
+      // Convert compressed file to base64
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setInBodyPhoto(event.target?.result as string);
+        setIsCompressing(false);
+      };
+      reader.onerror = () => {
+        alert("讀取圖片失敗，請重試");
+        setIsCompressing(false);
+      };
+      reader.readAsDataURL(compressedFile);
+      
+    } catch (error) {
+      console.error("Image compression failed:", error);
+      alert("圖片處理失敗，請嘗試使用其他照片");
+      setIsCompressing(false);
+    }
   };
 
   const handleAddInBody = (e: FormEvent) => {
@@ -289,14 +287,21 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => inBodyPhotoRef.current?.click()}
+                disabled={isCompressing}
                 className={cn(
                   "flex-1 flex items-center justify-center py-2.5 border-2 border-dashed rounded-xl transition-colors",
                   inBodyPhoto 
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700" 
-                    : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100"
+                    : "border-slate-200 bg-slate-50 text-slate-500 hover:bg-slate-100",
+                  isCompressing && "opacity-50 cursor-not-allowed"
                 )}
               >
-                {inBodyPhoto ? (
+                {isCompressing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    處理圖片中...
+                  </>
+                ) : inBodyPhoto ? (
                   <>
                     <ImageIcon className="w-4 h-4 mr-2" />
                     照片已選取
@@ -328,9 +333,13 @@ export default function ProfilePage() {
 
             <button
               type="submit"
-              className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors"
+              disabled={isCompressing}
+              className={cn(
+                "w-full py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors",
+                isCompressing && "opacity-50 cursor-not-allowed"
+              )}
             >
-              新增紀錄
+              {isCompressing ? "圖片處理中..." : "新增紀錄"}
             </button>
           </form>
 
