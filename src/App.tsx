@@ -5,11 +5,56 @@ import {
   Link,
   useLocation,
 } from "react-router-dom";
-import { Home, User } from "lucide-react";
+import { Home, User, LogIn, LogOut } from "lucide-react";
 import { cn } from "./lib/utils";
 import HomePage from "./pages/Home";
 import DailyDetailPage from "./pages/DailyDetail";
 import ProfilePage from "./pages/Profile";
+import { useStore } from "./store/useStore";
+import { signInWithGoogle, logout as firebaseLogout, isFirebaseConfigValid } from "./lib/firebase";
+
+function Header() {
+  const { user } = useStore();
+
+  return (
+    <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+      <div className="flex items-center space-x-2">
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+          <span className="text-white font-black text-xs">P</span>
+        </div>
+        <span className="font-bold text-slate-900">Protein Tracker</span>
+      </div>
+      
+      {isFirebaseConfigValid ? (
+        user ? (
+          <div className="flex items-center space-x-3">
+            <img 
+              src={user.photoURL || ""} 
+              alt={user.displayName || ""} 
+              className="w-8 h-8 rounded-full border border-slate-200"
+              referrerPolicy="no-referrer"
+            />
+            <button 
+              onClick={firebaseLogout}
+              className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+              title="登出"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button 
+            onClick={signInWithGoogle}
+            className="flex items-center space-x-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+          >
+            <LogIn className="w-4 h-4 text-indigo-600" />
+            <span>Google 登入</span>
+          </button>
+        )
+      ) : null}
+    </header>
+  );
+}
 
 function Navigation() {
   const location = useLocation();
@@ -51,6 +96,7 @@ export default function App() {
     <Router>
       <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-sans selection:bg-indigo-100 selection:text-indigo-900">
         <main className="max-w-md mx-auto min-h-screen bg-white shadow-sm sm:border-x sm:border-slate-200 relative">
+          <Header />
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/day/:date" element={<DailyDetailPage />} />

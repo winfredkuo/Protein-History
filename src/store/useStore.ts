@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
+import { auth } from "../lib/firebase";
+import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
 
 export type UserProfile = {
   weight: number; // kg
@@ -37,6 +39,7 @@ const DEFAULT_PROFILE: UserProfile = {
 };
 
 export function useStore() {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userId, setUserIdState] = useState<string | null>(() => {
     return localStorage.getItem("proteinTracker_userId");
   });
@@ -89,6 +92,26 @@ export function useStore() {
     }
     return false;
   }, []);
+
+  // Listen for auth changes
+  useEffect(() => {
+    if (!auth) return;
+    
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser(firebaseUser);
+        setUserIdState(firebaseUser.uid);
+        localStorage.setItem("proteinTracker_userId", firebaseUser.uid);
+        // Sync data when user logs in
+        syncWithServer(firebaseUser.uid);
+      } else {
+        setUser(null);
+        setUserIdState(null);
+        localStorage.removeItem("proteinTracker_userId");
+      }
+    });
+    return () => unsubscribe();
+  }, [syncWithServer]);
 
   const uploadToServer = useCallback(async () => {
     if (!userId) return;
@@ -217,6 +240,7 @@ export function useStore() {
     removeInBodyRecord,
     importData,
     userId,
+    user,
     syncWithServer,
     logout,
     isSyncing,
