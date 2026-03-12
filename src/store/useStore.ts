@@ -88,6 +88,19 @@ export function useStore() {
       // If server is empty, we treat this as "registering" this ID with current local data
       setUserIdState(id);
       localStorage.setItem("proteinTracker_userId", id);
+      
+      // Force an immediate upload of local data to the new server document
+      const localProfile = JSON.parse(localStorage.getItem("proteinTracker_profile") || JSON.stringify(DEFAULT_PROFILE));
+      const localRecords = JSON.parse(localStorage.getItem("proteinTracker_records") || "{}");
+      const localInBody = JSON.parse(localStorage.getItem("proteinTracker_inbody") || "[]");
+      
+      await setDoc(docRef, {
+        profile: localProfile,
+        records: localRecords,
+        inBodyRecords: localInBody,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
+      
       return true;
     } catch (error) {
       console.error("Sync failed", error);
@@ -140,10 +153,7 @@ export function useStore() {
   // Save to local storage whenever state changes
   useEffect(() => {
     localStorage.setItem("proteinTracker_profile", JSON.stringify(profile));
-    if (userId) {
-      uploadToServer();
-    }
-  }, [profile, userId, records, inBodyRecords, uploadToServer]);
+  }, [profile]);
 
   useEffect(() => {
     localStorage.setItem("proteinTracker_records", JSON.stringify(records));
@@ -152,6 +162,17 @@ export function useStore() {
   useEffect(() => {
     localStorage.setItem("proteinTracker_inbody", JSON.stringify(inBodyRecords));
   }, [inBodyRecords]);
+
+  // Upload to server whenever data changes, but debounce it
+  useEffect(() => {
+    if (!userId || isSyncing) return;
+    
+    const timeoutId = setTimeout(() => {
+      uploadToServer();
+    }, 1000); // 1 second debounce
+    
+    return () => clearTimeout(timeoutId);
+  }, [profile, records, inBodyRecords, userId, uploadToServer, isSyncing]);
 
   const updateProfile = useCallback((newProfile: Partial<UserProfile>) => {
     setProfileState((prev) => {
