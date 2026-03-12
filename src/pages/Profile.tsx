@@ -22,6 +22,7 @@ export default function ProfilePage() {
   const [inBodyMuscle, setInBodyMuscle] = useState("");
   const [inBodyFat, setInBodyFat] = useState("");
   const [inBodyPhoto, setInBodyPhoto] = useState<string | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const handlePhotoUpload = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -29,7 +30,36 @@ export default function ProfilePage() {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setInBodyPhoto(event.target?.result as string);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Compress to JPEG with 0.7 quality to keep size small for Firestore
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+        setInBodyPhoto(compressedBase64);
+      };
+      img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
   };
@@ -330,7 +360,7 @@ export default function ProfilePage() {
                             src={record.photoUrl} 
                             alt="InBody" 
                             className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => window.open(record.photoUrl)}
+                            onClick={() => setSelectedPhoto(record.photoUrl || null)}
                           />
                         </div>
                       )}
@@ -398,6 +428,29 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Image Modal */}
+      {selectedPhoto && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center">
+            <button 
+              className="absolute -top-12 right-0 text-white p-2 bg-white/10 rounded-full hover:bg-white/20 transition-colors"
+              onClick={() => setSelectedPhoto(null)}
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={selectedPhoto} 
+              alt="InBody Full Size" 
+              className="max-w-full max-h-[90vh] object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

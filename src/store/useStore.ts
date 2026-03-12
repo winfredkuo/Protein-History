@@ -31,6 +31,7 @@ export type InBodyRecord = {
   bodyFat: number;
   recommendedMultiplier: number;
   recommendedProtein: number;
+  photoUrl?: string;
 };
 
 const DEFAULT_PROFILE: UserProfile = {
