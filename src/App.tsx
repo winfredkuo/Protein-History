@@ -12,6 +12,7 @@ import DailyDetailPage from "./pages/DailyDetail";
 import ProfilePage from "./pages/Profile";
 import { useStore } from "./store/useStore";
 import { signInWithGoogle, logout as firebaseLogout, isFirebaseConfigValid } from "./lib/firebase";
+import InstallPrompt from "./components/InstallPrompt";
 
 function Header() {
   const { user } = useStore();
@@ -132,6 +133,7 @@ export default function App() {
           </Routes>
         </main>
         <Navigation />
+        <InstallPrompt />
       </div>
     </Router>
   );
