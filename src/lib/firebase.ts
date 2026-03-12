@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -16,11 +17,13 @@ const isFirebaseConfigValid = !!firebaseConfig.apiKey && firebaseConfig.apiKey !
 let app;
 let auth: any;
 let googleProvider: any;
+let db: any;
 
 if (isFirebaseConfigValid) {
   try {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
+    db = getFirestore(app);
     googleProvider = new GoogleAuthProvider();
     // Force account selection to prevent auto-login loops
     googleProvider.setCustomParameters({
@@ -31,7 +34,7 @@ if (isFirebaseConfigValid) {
   }
 }
 
-export { auth, googleProvider, isFirebaseConfigValid };
+export { auth, db, googleProvider, isFirebaseConfigValid };
 
 export const signInWithGoogle = async () => {
   if (!auth || !googleProvider) {

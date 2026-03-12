@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { format } from "date-fns";
-import { auth } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 export type UserProfile = {
   weight: number; // kg
@@ -65,12 +66,14 @@ export function useStore() {
 
   // Sync with server (Download)
   const syncWithServer = useCallback(async (id: string) => {
+    if (!db) return false;
     setIsSyncing(true);
     try {
-      const response = await fetch(`/api/data/${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        // Only update if server has data
+      const docRef = doc(db, "users", id);
+      const docSnap = await getDoc(docRef);
+      
+      if (docSnap.exists()) {
+        const data = docSnap.data();
         if (data.profile) {
           setProfileState(data.profile);
           setRecordsState(data.records || {});
@@ -78,13 +81,13 @@ export function useStore() {
           setUserIdState(id);
           localStorage.setItem("proteinTracker_userId", id);
           return true;
-        } else {
-          // If server is empty, we treat this as "registering" this ID with current local data
-          setUserIdState(id);
-          localStorage.setItem("proteinTracker_userId", id);
-          return true;
         }
       }
+      
+      // If server is empty, we treat this as "registering" this ID with current local data
+      setUserIdState(id);
+      localStorage.setItem("proteinTracker_userId", id);
+      return true;
     } catch (error) {
       console.error("Sync failed", error);
     } finally {
@@ -114,13 +117,15 @@ export function useStore() {
   }, [syncWithServer]);
 
   const uploadToServer = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !db) return;
     try {
-      await fetch(`/api/data/${userId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profile, records, inBodyRecords }),
-      });
+      const docRef = doc(db, "users", userId);
+      await setDoc(docRef, {
+        profile,
+        records,
+        inBodyRecords,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (error) {
       console.error("Upload failed", error);
     }
