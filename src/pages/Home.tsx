@@ -1,10 +1,27 @@
 import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { format, subDays, isToday } from "date-fns";
-import { ChevronRight, Plus } from "lucide-react";
+import { ChevronRight, Plus, Info } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { useStore } from "../store/useStore";
 import { cn } from "../lib/utils";
+
+const COMMON_FOODS = [
+  { name: "鮭魚 (100g)", protein: 22 },
+  { name: "牛肉 (100g)", protein: 20 },
+  { name: "豬肉 (100g)", protein: 20 },
+  { name: "雞肉 (100g)", protein: 21 },
+  { name: "魚肉 (100g)", protein: 15 },
+  { name: "蝦仁 (100g)", protein: 10 },
+  { name: "雞蛋 (1顆)", protein: 7 },
+  { name: "麥當勞豬肉蛋堡", protein: 21 },
+  { name: "麥當勞大麥克", protein: 26 },
+  { name: "麥當勞雙層四盎司", protein: 52 },
+  { name: "麥當勞四盎司", protein: 32 },
+  { name: "麥當勞雙層牛肉吉事堡", protein: 26 },
+  { name: "豆漿 (100cc)", protein: 3.5 },
+  { name: "蚵仔 (100g)", protein: 10 },
+];
 
 export default function HomePage() {
   const { profile, records, addFoodEntry } = useStore();
@@ -13,6 +30,7 @@ export default function HomePage() {
   
   const [manualName, setManualName] = useState("");
   const [manualProtein, setManualProtein] = useState("");
+  const [showReference, setShowReference] = useState(false);
 
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const todayRecord = records[todayStr] || { totalProtein: 0 };
@@ -52,6 +70,12 @@ export default function HomePage() {
     setManualProtein("");
     setError("");
     navigate(`/day/${todayStr}`);
+  };
+
+  const handleQuickAdd = (food: typeof COMMON_FOODS[0]) => {
+    setManualName(food.name);
+    setManualProtein(food.protein.toString());
+    setShowReference(false);
   };
 
   return (
@@ -94,7 +118,29 @@ export default function HomePage() {
           <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider">
             新增食物
           </h2>
+          <button 
+            onClick={() => setShowReference(!showReference)}
+            className="flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            <Info className="w-3.5 h-3.5 mr-1" />
+            常見食物參考
+          </button>
         </div>
+
+        {showReference && (
+          <div className="mb-6 grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-100 max-h-60 overflow-y-auto">
+            {COMMON_FOODS.map((food) => (
+              <button
+                key={food.name}
+                onClick={() => handleQuickAdd(food)}
+                className="text-left p-2.5 bg-white border border-slate-200 rounded-xl text-xs hover:border-indigo-300 hover:bg-indigo-50 transition-all group"
+              >
+                <div className="font-bold text-slate-700 group-hover:text-indigo-700">{food.name}</div>
+                <div className="text-slate-400 mt-0.5">{food.protein}克 蛋白質</div>
+              </button>
+            ))}
+          </div>
+        )}
 
         <form onSubmit={handleManualAdd} className="flex flex-col space-y-3">
           <div className="flex space-x-2">
