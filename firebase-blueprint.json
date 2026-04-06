@@ -1,0 +1,81 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User's physical profile and goals",
+      "type": "object",
+      "properties": {
+        "weight": { "type": "number", "description": "User's weight in kg" },
+        "goalMultiplier": { "type": "number", "description": "Protein goal multiplier (g/kg)" },
+        "dailyGoal": { "type": "number", "description": "Calculated daily protein goal in grams" }
+      },
+      "required": ["weight", "goalMultiplier", "dailyGoal"]
+    },
+    "FoodEntry": {
+      "title": "FoodEntry",
+      "description": "A single food item entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "protein": { "type": "number" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "name", "protein", "timestamp"]
+    },
+    "DailyRecord": {
+      "title": "DailyRecord",
+      "description": "Protein intake record for a specific day",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date" },
+        "entries": { 
+          "type": "array",
+          "items": { "$ref": "#/entities/FoodEntry" }
+        },
+        "totalProtein": { "type": "number" }
+      },
+      "required": ["date", "entries", "totalProtein"]
+    },
+    "InBodyRecord": {
+      "title": "InBodyRecord",
+      "description": "InBody measurement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "weight": { "type": "number" },
+        "muscleMass": { "type": "number" },
+        "bodyFat": { "type": "number" },
+        "recommendedMultiplier": { "type": "number" },
+        "recommendedProtein": { "type": "number" },
+        "photoUrl": { "type": "string", "description": "Optional base64 or URL of InBody photo" }
+      },
+      "required": ["id", "timestamp", "weight", "muscleMass", "bodyFat", "recommendedMultiplier", "recommendedProtein"]
+    },
+    "UserDocument": {
+      "title": "UserDocument",
+      "description": "The root document for a user's data",
+      "type": "object",
+      "properties": {
+        "profile": { "$ref": "#/entities/UserProfile" },
+        "records": { 
+          "type": "object",
+          "additionalProperties": { "$ref": "#/entities/DailyRecord" }
+        },
+        "inBodyRecords": {
+          "type": "array",
+          "items": { "$ref": "#/entities/InBodyRecord" }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["profile", "records", "inBodyRecords", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "UserDocument",
+      "description": "Storage for all user-specific data"
+    }
+  }
+}
