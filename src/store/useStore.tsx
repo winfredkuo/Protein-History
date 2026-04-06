@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import { format } from "date-fns";
 import { auth, db } from "../lib/firebase";
 import { onAuthStateChanged, User as FirebaseUser } from "firebase/auth";
@@ -40,7 +40,28 @@ const DEFAULT_PROFILE: UserProfile = {
   dailyGoal: Math.round(70 * 1.8),
 };
 
-export function useStore() {
+interface StoreContextType {
+  profile: UserProfile;
+  updateProfile: (newProfile: Partial<UserProfile>) => void;
+  records: Record<string, DailyRecord>;
+  addFoodEntry: (date: string, entry: FoodEntry) => void;
+  updateFoodEntry: (date: string, entryId: string, updatedEntry: Partial<FoodEntry>) => void;
+  removeFoodEntry: (date: string, entryId: string) => void;
+  getRecordForDate: (date: string) => DailyRecord;
+  inBodyRecords: InBodyRecord[];
+  addInBodyRecord: (record: InBodyRecord) => void;
+  removeInBodyRecord: (id: string) => void;
+  importData: (data: { profile: UserProfile, records: Record<string, DailyRecord>, inBodyRecords?: InBodyRecord[] }) => void;
+  userId: string | null;
+  user: FirebaseUser | null;
+  syncWithServer: (id: string) => Promise<boolean>;
+  logout: () => void;
+  isSyncing: boolean;
+}
+
+const StoreContext = createContext<StoreContextType | undefined>(undefined);
+
+export function StoreProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userId, setUserIdState] = useState<string | null>(() => {
     return localStorage.getItem("proteinTracker_userId");
@@ -119,7 +140,6 @@ export function useStore() {
         setUser(firebaseUser);
         setUserIdState(firebaseUser.uid);
         localStorage.setItem("proteinTracker_userId", firebaseUser.uid);
-        // Sync data when user logs in
         syncWithServer(firebaseUser.uid);
       } else {
         setUser(null);
@@ -169,7 +189,7 @@ export function useStore() {
     
     const timeoutId = setTimeout(() => {
       uploadToServer();
-    }, 1000); // 1 second debounce
+    }, 1000);
     
     return () => clearTimeout(timeoutId);
   }, [profile, records, inBodyRecords, userId, uploadToServer, isSyncing]);
@@ -239,7 +259,6 @@ export function useStore() {
   const addInBodyRecord = useCallback((record: InBodyRecord) => {
     setInBodyRecordsState((prev) => {
       const newRecords = [record, ...prev];
-      // Sort by timestamp descending
       return newRecords.sort((a, b) => b.timestamp - a.timestamp);
     });
   }, []);
@@ -254,7 +273,7 @@ export function useStore() {
     if (data.inBodyRecords) setInBodyRecordsState(data.inBodyRecords);
   }, []);
 
-  return {
+  const value = {
     profile,
     updateProfile,
     records,
@@ -272,4 +291,14 @@ export function useStore() {
     logout,
     isSyncing,
   };
+
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+}
+
+export function useStore() {
+  const context = useContext(StoreContext);
+  if (context === undefined) {
+    throw new Error("useStore must be used within a StoreProvider");
+  }
+  return context;
 }

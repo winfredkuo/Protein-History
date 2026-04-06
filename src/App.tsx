@@ -10,7 +10,7 @@ import { cn } from "./lib/utils";
 import HomePage from "./pages/Home";
 import DailyDetailPage from "./pages/DailyDetail";
 import ProfilePage from "./pages/Profile";
-import { useStore } from "./store/useStore";
+import { useStore, StoreProvider } from "./store/useStore";
 import { signInWithGoogle, logout as firebaseLogout, isFirebaseConfigValid } from "./lib/firebase";
 import InstallPrompt from "./components/InstallPrompt";
 
@@ -122,19 +122,21 @@ function Navigation() {
 
 export default function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-sans selection:bg-indigo-100 selection:text-indigo-900">
-        <main className="max-w-md mx-auto min-h-screen bg-white shadow-sm sm:border-x sm:border-slate-200 relative">
-          <Header />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/day/:date" element={<DailyDetailPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-          </Routes>
-        </main>
-        <Navigation />
-        <InstallPrompt />
-      </div>
-    </Router>
+    <StoreProvider>
+      <Router>
+        <div className="min-h-screen bg-slate-50 text-slate-900 pb-20 font-sans selection:bg-indigo-100 selection:text-indigo-900">
+          <main className="max-w-md mx-auto min-h-screen bg-white shadow-sm sm:border-x sm:border-slate-200 relative">
+            <Header />
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/day/:date" element={<DailyDetailPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+            </Routes>
+          </main>
+          <Navigation />
+          <InstallPrompt />
+        </div>
+      </Router>
+    </StoreProvider>
   );
 }
