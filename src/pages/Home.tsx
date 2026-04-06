@@ -1,7 +1,17 @@
 import { useState, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { format, subDays, isToday } from "date-fns";
-import { ChevronRight, Plus, Info } from "lucide-react";
+import { 
+  format, 
+  subDays, 
+  isToday, 
+  parseISO, 
+  isAfter, 
+  startOfWeek, 
+  endOfWeek, 
+  startOfMonth,
+  isSameDay
+} from "date-fns";
+import { ChevronRight, Plus, Info, Calendar, BarChart3, Clock } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { useStore } from "../store/useStore";
 import { cn } from "../lib/utils";
@@ -39,15 +49,58 @@ export default function HomePage() {
     100,
   );
 
-  const recentDays = Array.from({ length: 7 }).map((_, i) => {
-    const date = subDays(new Date(), i);
+  // Grouping Logic
+  const now = new Date();
+  const sevenDaysAgo = subDays(now, 7);
+  const thirtyDaysAgo = subDays(now, 30);
+
+  // 1. Daily Items (Last 7 days)
+  const dailyItems = Array.from({ length: 7 }).map((_, i) => {
+    const date = subDays(now, i);
     const dateStr = format(date, "yyyy-MM-dd");
     return {
+      type: 'day' as const,
       date,
       dateStr,
-      record: records[dateStr] || { totalProtein: 0 },
+      total: records[dateStr]?.totalProtein || 0,
     };
   });
+
+  // 2. Weekly & Monthly Groups
+  const weeklyGroups: Record<string, { start: Date, end: Date, total: number }> = {};
+  const monthlyGroups: Record<string, { date: Date, total: number }> = {};
+
+  Object.entries(records).forEach(([dateStr, record]: [string, any]) => {
+    const date = parseISO(dateStr);
+    
+    // Skip if it's within the last 7 days (already in dailyItems)
+    const isRecent = dailyItems.some(item => isSameDay(item.date, date));
+    if (isRecent) return;
+
+    if (isAfter(date, thirtyDaysAgo)) {
+      // Weekly Grouping (Monday to Sunday)
+      const weekStart = startOfWeek(date, { weekStartsOn: 1 });
+      const weekEnd = endOfWeek(date, { weekStartsOn: 1 });
+      const weekKey = format(weekStart, "yyyy-MM-dd");
+      
+      if (!weeklyGroups[weekKey]) {
+        weeklyGroups[weekKey] = { start: weekStart, end: weekEnd, total: 0 };
+      }
+      weeklyGroups[weekKey].total += record.totalProtein;
+    } else {
+      // Monthly Grouping
+      const monthStart = startOfMonth(date);
+      const monthKey = format(monthStart, "yyyy-MM");
+      
+      if (!monthlyGroups[monthKey]) {
+        monthlyGroups[monthKey] = { date: monthStart, total: 0 };
+      }
+      monthlyGroups[monthKey].total += record.totalProtein;
+    }
+  });
+
+  const weeklyItems = Object.values(weeklyGroups).sort((a, b) => b.start.getTime() - a.start.getTime());
+  const monthlyItems = Object.values(monthlyGroups).sort((a, b) => b.date.getTime() - a.date.getTime());
 
   const handleManualAdd = (e: FormEvent) => {
     e.preventDefault();
@@ -175,66 +228,103 @@ export default function HomePage() {
         {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
       </div>
 
-      {/* History */}
-      <div className="flex-1 px-6 py-6">
-        <h2 className="text-sm font-semibold text-slate-900 uppercase tracking-wider mb-4">
-          近期紀錄
-        </h2>
-        <div className="space-y-3">
-          {recentDays.map(({ date, dateStr, record }) => {
-            const dayProgress = Math.min(
-              (record.totalProtein / profile.dailyGoal) * 100,
-              100,
-            );
-            const isGoalMet = record.totalProtein >= profile.dailyGoal;
+      {/* History List */}
+      <div className="flex-1 px-6 py-6 space-y-8">
+        
+        {/* Daily Section */}
+        <section>
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+            <Clock className="w-3 h-3 mr-1.5" /> 近期紀錄
+          </h2>
+          <div className="space-y-3">
+            {dailyItems.map(({ date, dateStr, total }) => {
+              const dayProgress = Math.min((total / profile.dailyGoal) * 100, 100);
+              const isGoalMet = total >= profile.dailyGoal;
 
-            return (
-              <Link
-                key={dateStr}
-                to={`/day/${dateStr}`}
-                className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 transition-colors group"
-              >
-                <div>
-                  <div className="font-medium text-slate-900">
-                    {isToday(date) ? "今天" : format(date, "MMM d日, EEEE")}
+              return (
+                <Link
+                  key={dateStr}
+                  to={`/day/${dateStr}`}
+                  className="flex items-center justify-between p-4 bg-white rounded-2xl border border-slate-200 hover:border-indigo-300 transition-colors group"
+                >
+                  <div>
+                    <div className="font-medium text-slate-900">
+                      {isToday(date) ? "今天" : format(date, "MM月dd日, EEEE")}
+                    </div>
+                    <div className="text-sm text-slate-500 mt-0.5">
+                      {total}克 蛋白質
+                    </div>
                   </div>
-                  <div className="text-sm text-slate-500 mt-0.5">
-                    {record.totalProtein}克 蛋白質
+
+                  <div className="flex items-center space-x-4">
+                    <div className="w-10 h-10 rounded-full border-2 border-slate-50 flex items-center justify-center relative">
+                      <svg className="w-full h-full transform -rotate-90 absolute" viewBox="0 0 36 36">
+                        <path className="text-slate-100" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className={isGoalMet ? "text-emerald-500" : "text-indigo-600"} strokeDasharray={`${dayProgress}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* Weekly Section */}
+        {weeklyItems.length > 0 && (
+          <section>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+              <Calendar className="w-3 h-3 mr-1.5" /> 過去週紀錄
+            </h2>
+            <div className="space-y-3">
+              {weeklyItems.map((item) => (
+                <div key={item.start.toISOString()} className="flex items-center justify-between p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                  <div>
+                    <div className="font-bold text-indigo-900">
+                      {format(item.start, "MM/dd")} - {format(item.end, "MM/dd")}
+                    </div>
+                    <div className="text-xs text-indigo-600 mt-0.5">
+                      本週總計
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-lg font-black text-indigo-600">{item.total}克</div>
+                    <div className="text-[10px] text-indigo-400 font-medium">蛋白質</div>
                   </div>
                 </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-                <div className="flex items-center space-x-4">
-                  <div className="w-12 h-12 rounded-full border-4 border-slate-50 flex items-center justify-center relative">
-                    <svg
-                      className="w-full h-full transform -rotate-90 absolute"
-                      viewBox="0 0 36 36"
-                    >
-                      <path
-                        className="text-slate-100"
-                        strokeWidth="3"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                      <path
-                        className={
-                          isGoalMet ? "text-emerald-500" : "text-indigo-600"
-                        }
-                        strokeDasharray={`${dayProgress}, 100`}
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        stroke="currentColor"
-                        fill="none"
-                        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                      />
-                    </svg>
+        {/* Monthly Section */}
+        {monthlyItems.length > 0 && (
+          <section>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
+              <BarChart3 className="w-3 h-3 mr-1.5" /> 過去月紀錄
+            </h2>
+            <div className="space-y-3">
+              {monthlyItems.map((item) => (
+                <div key={item.date.toISOString()} className="flex items-center justify-between p-5 bg-slate-900 rounded-2xl shadow-sm">
+                  <div>
+                    <div className="font-black text-white text-lg">
+                      {format(item.date, "yyyy年 M月")}
+                    </div>
+                    <div className="text-slate-400 text-xs mt-0.5">
+                      全月總計
+                    </div>
                   </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-indigo-600 transition-colors" />
+                  <div className="text-right">
+                    <div className="text-2xl font-black text-emerald-400">{item.total}克</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase">Total Protein</div>
+                  </div>
                 </div>
-              </Link>
-            );
-          })}
-        </div>
+              ))}
+            </div>
+          </section>
+        )}
+
       </div>
     </div>
   );
